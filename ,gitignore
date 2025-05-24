@@ -1,0 +1,8 @@
+# Ignore CircuitPython secrets file
+secrets.py
+
+# Ignore Thonny-specific files
+__pycache__/
+*.mpy
+*.uf2
+.ipynb_checkpoints/
