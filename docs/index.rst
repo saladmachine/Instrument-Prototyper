@@ -1,10 +1,15 @@
-saladmachine Documentation
-==========================
+Welcome to Instrument-Prototyper's documentation!
+===============================================
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-.. automodule:: examples
-   :members:
-   :undoc-members:
+   modules
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
