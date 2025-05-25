@@ -1,53 +1,81 @@
-# test_sd_init.py
-# Test program for initializing an SD card using the PiCowbell Adalogger pinout.
+# SPDX-FileCopyrightText: 2025 Joe Pardue
+#
+# SPDX-License-Identifier: MIT
+
+"""
+Pico W 2 SD Card Initialization Example
+
+This example demonstrates how to initialize and mount an SD card using the
+Adafruit PiCowbell Adalogger for Pico W 2. It verifies that the SD card
+is correctly detected and accessible, and lists the first few files found.
+
+Hardware Setup:
+- Raspberry Pi Pico W 2
+- Adafruit PiCowbell Adalogger for Pico
+- MicroSD card (formatted as FAT32)
+
+Connections (handled by PiCowbell; for reference, uses SPI0 pins):
+- SCK (SPI Clock):   board.GP18
+- MOSI (SPI Data Out): board.GP19
+- MISO (SPI Data In):  board.GP16
+- CS (Chip Select):    board.GP17
+"""
 
 import board
 import busio
 import sdcardio
 import storage
 import time
-import os
+import os  # Required for os.listdir() to list files on the SD card
 
-print("--- Starting SD Card Initialization Test ---")
-
-# Define SPI pins for the PiCowbell Adalogger
-# SCK (Clock)  = GP18
-# MOSI (Data Out) = GP19
-# MISO (Data In)  = GP16
-# CS (Chip Select) = GP17
+print("--- Starting SD Card Initialization Example ---")
 
 try:
-    # Initialize SPI bus
-    # Note: Raspberry Pi Pico's SPI interfaces are typically SPI0 (GPs 16-19)
-    # and SPI1 (GPs 8-11). The PiCowbell uses pins that map to SPI0.
+    # Initialize the SPI bus using the specific pins for the PiCowbell Adalogger.
+    # The Pico W 2's GP pins (General Purpose) are used for SPI communication.
     spi = busio.SPI(clock=board.GP18, MOSI=board.GP19, MISO=board.GP16)
 
-    # Initialize SD card
-    # The Chip Select (CS) pin for the SD card is GP17
+    # Initialize the SD card using the SPI bus and the Chip Select (CS) pin.
     sd_card = sdcardio.SDCard(spi, board.GP17)
 
-    # Mount the SD card as /sd/
+    # Create a VfsFat (Virtual File System) object for the SD card.
     vfs = storage.VfsFat(sd_card)
+
+    # Mount the SD card into the CircuitPython file system at the '/sd' path.
+    # This makes the SD card accessible like a regular directory.
     storage.mount(vfs, "/sd")
 
-    print("SD Card successfully initialized and mounted!")
-    print("Files on SD card (first 5):")
-    # List up to 5 files/directories to confirm it's readable
+    print("SD Card successfully initialized and mounted at '/sd'!")
+
+    # List up to the first 5 files/directories found on the SD card to confirm readability.
+    print("\nFiles found on SD card (first 5 entries):")
+    # os.listdir("/sd") returns a list of names of entries in the /sd directory.
     for i, entry in enumerate(os.listdir("/sd")):
         print(f"- {entry}")
-        if i >= 4:  # Limit output to 5 entries
-            print("...")
+        if i >= 4:  # Stop after listing 5 entries to keep output concise
+            print("  ...")
             break
+    if not os.listdir("/sd"):  # Check if the directory is empty
+        print("  (No files found on SD card)")
 
+
+except OSError as e:
+    # Catch specific OS-related errors during SD card operation (e.g., card not found, bad format).
+    print(f"\nError during SD Card Initialization: {e}")
+    print("Troubleshooting Tips:")
+    print("  - Ensure an SD card is correctly inserted into the PiCowbell Adalogger.")
+    print(
+        "  - Verify the SD card is formatted as FAT32 (most common for CircuitPython)."
+    )
+    print("  - Check all connections between the Pico W 2 and the PiCowbell Adalogger.")
 except Exception as e:
-    print(f"Error initializing SD Card: {e}")
-    print("Please ensure:")
-    print("1. An SD card is inserted into the PiCowbell Adalogger.")
-    print("2. The PiCowbell Adalogger is correctly connected to the Pico W 2.")
-    print("3. The SD card is formatted (FAT32 is recommended).")
+    # Catch any other unexpected errors during the process.
+    print(f"\nAn unexpected error occurred: {e}")
+    print("Please review the traceback above for more details.")
 
-print("--- SD Card Initialization Test Complete ---")
+print("\n--- SD Card Initialization Example Complete ---")
 
-# The program will idle here.
+# Keep the program running indefinitely. In a real application,
+# the code would continue to perform logging or other tasks.
 while True:
     time.sleep(1)

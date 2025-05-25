@@ -1,30 +1,57 @@
-# test_onboard_led.py
-# Test program for the Pico W's onboard LED.
+# SPDX-FileCopyrightText: 2025 Joe Pardue
+#
+# SPDX-License-Identifier: MIT
+
+"""
+Pico W 2 Onboard LED Blinky Example
+
+This example demonstrates how to control and blink the onboard LED of the
+Raspberry Pi Pico W 2. It's a fundamental 'Hello World' for microcontrollers,
+verifying basic digital output functionality.
+
+The onboard LED on the Pico W 2 is connected to GPIO25, which CircuitPython
+maps to `board.LED`.
+"""
 
 import board
 import digitalio
 import time
 
-# Set up the onboard LED as an output
-# The onboard LED is usually connected to board.LED
-# On Pico W, it's connected to GP25, which CircuitPython maps to board.LED
-led = digitalio.DigitalInOut(board.LED)
-led.direction = digitalio.Direction.OUTPUT
+# --- Configuration ---
+# Define the blink interval in seconds
+BLINK_INTERVAL_SECONDS = 0.5
+# --- End Configuration ---
 
-print("--- Starting Onboard LED Test ---")
+print("--- Starting Onboard LED Blinky Example ---")
 print("The onboard LED should blink on and off.")
-print("Press Ctrl+C in the REPL to stop.")
+print(f"Blink interval: {BLINK_INTERVAL_SECONDS} seconds.")
+print("Press Ctrl+C in the REPL to stop the program.")
 
 try:
-    while True:
-        led.value = True  # Turn LED on
-        print("LED ON")
-        time.sleep(0.5)  # Wait for 0.5 seconds
+    # Set up the onboard LED as a digital output.
+    # On the Pico W 2, board.LED is an alias for board.GP25.
+    onboard_led = digitalio.DigitalInOut(board.LED)
+    onboard_led.direction = digitalio.Direction.OUTPUT
 
-        led.value = False  # Turn LED off
+    while True:
+        # Turn the LED on
+        onboard_led.value = True
+        print("LED ON")
+        time.sleep(BLINK_INTERVAL_SECONDS)
+
+        # Turn the LED off
+        onboard_led.value = False
         print("LED OFF")
-        time.sleep(0.5)  # Wait for 0.5 seconds
+        time.sleep(BLINK_INTERVAL_SECONDS)
 
 except KeyboardInterrupt:
-    print("\n--- Onboard LED Test Stopped ---")
-    led.value = False  # Ensure LED is off when program exits
+    # This block executes if Ctrl+C is pressed in the REPL.
+    print("\n--- Onboard LED Blinky Example Stopped ---")
+    onboard_led.value = False  # Ensure the LED is off when exiting the program
+except Exception as e:
+    # Catch any other unexpected errors.
+    print(f"\nAn unexpected error occurred: {e}")
+
+# The program will idle here after completion or error.
+while True:
+    time.sleep(1)
