@@ -7,7 +7,7 @@ import time
 
 # Set up the onboard LED as an output
 # The onboard LED is usually connected to board.LED
-# On Pico W, it's connected to GPIO25, which CircuitPython maps to board.LED
+# On Pico W, it's connected to GP25, which CircuitPython maps to board.LED
 led = digitalio.DigitalInOut(board.LED)
 led.direction = digitalio.Direction.OUTPUT
 
