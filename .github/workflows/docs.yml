@@ -29,7 +29,7 @@ jobs:
 
       - name: Generate API docs with sphinx-apidoc
         run: |
-          sphinx-apidoc -o docs/ ./instrument_prototyper
+          sphinx-apidoc -o docs/ ./examples
 
       - name: Build HTML documentation
         run: |
