@@ -1,12 +1,17 @@
-name: Build Docs
+name: Build and Deploy Docs
 
 on:
   push:
     branches: [main, master]
-  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
-  build-docs:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -26,8 +31,21 @@ jobs:
         run: |
           sphinx-build -b html docs docs/_build/html
 
-      - name: Upload HTML docs as artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload docs to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: html-docs
-          path: docs/_build/html/
+          path: docs/_build/html
+
+  deploy:
+    permissions:
+      pages: write
+      id-token: write
+    runs-on: ubuntu-latest
+    needs: build-and-deploy
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
