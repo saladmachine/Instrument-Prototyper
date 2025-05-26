@@ -6,3 +6,34 @@ __pycache__/
 *.mpy
 *.uf2
 .ipynb_checkpoints/
+
+# CircuitPython specific
+lib/
+.fseventsd/
+.metadata_never_index
+.Trashes
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+.vscode/settings.json
+*.swp
+*.swo
+
+# Logs and temp files
+*.log
+*.tmp
+boot_out.txt
+
+# Hidden files
+.*
+!.gitignore
