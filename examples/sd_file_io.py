@@ -83,4 +83,4 @@ try:
 
     # --- Test 4: Read data after appending ---
     print(f"\n--- Reading data after appending from '{TEST_FILE_NAME}' ---")
-    with open(TEST_FILE_NAME, "r") as
+    with open(TEST_FILE_NAME, "r") as f:
