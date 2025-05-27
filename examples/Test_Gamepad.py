@@ -1,4 +1,3 @@
-Test_Gamepad.py
 # SPDX-FileCopyrightText: 2025 Joe Pardue
 #
 # SPDX-License-Identifier: MIT
