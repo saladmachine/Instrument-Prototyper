@@ -8,22 +8,41 @@ Comprehensive web-based control interface with menu navigation system for
 instrument control applications. Provides LED blink rate control and 
 file editor functionality with extensible hook system for future features.
 
+**REVOLUTIONARY FEATURE: Live Code Development Environment**
+This system enables complete code development directly on the Pico W using
+only a web browser - no computer or USB connection required for development!
+
 Features:
 - Web-based menu navigation system
 - LED blink rate control (0-100 scale with non-blocking operation)
+- **Live code editor with automatic reload** - edit code.py and automatically reboot
 - File editor with save/load capabilities for configuration management
+- **Self-contained development environment** - develop from phone/tablet/any browser
+- **Instant feedback loop** - save code.py → auto-reboot → test immediately
 - 6 extensible hook placeholders for future functionality
 - Static HTML architecture for memory efficiency
 - JSON API endpoints for data exchange
 - Non-blocking concurrent operations (LED control + web server)
 
+**Live Development Workflow:**
+1. Access web interface via pico.local or IP address
+2. Load code.py in file editor (shows current running code)
+3. Make changes directly in browser
+4. Save - Pico automatically reboots with new code in 2 seconds
+5. Test new functionality immediately
+6. Repeat cycle for rapid development
+
+**Auto-Reboot Behavior:**
+- code.py: Automatic reboot after save (enables live development)
+- All other files: Save without reboot (configuration files, data, etc.)
+
 Hardware Requirements:
 - Raspberry Pi Pico W with onboard LED
 - No additional wiring required for basic functionality
-- Optional: External battery for standalone operation
+- Optional: External battery for standalone operation and development
 
 Library Dependencies:
-- Core: time, json, wifi, socketpool, board, digitalio
+- Core: time, json, wifi, socketpool, board, digitalio, microcontroller
 - External: adafruit_httpserver (handles HTTP protocol and socket management)
 - Configuration: secrets.py (WiFi credentials)
 
@@ -32,13 +51,15 @@ Usage:
 2. Upload this code as code.py to CIRCUITPY drive
 3. Access web interface via IP address or pico.local
 4. Navigate menu system to access different functions
-5. LED blink control provides immediate feedback of system operation
+5. Use file editor for live code development - no computer needed!
+6. LED blink control provides immediate feedback of system operation
 
 Architecture Notes:
 - Static HTML strings avoid dynamic generation memory issues
 - JSON API pattern for reliable data exchange
 - adafruit_httpserver provides proper socket lifecycle management
 - Separation of presentation (HTML) and data (JSON endpoints)
+- Scheduled reboot system for seamless code reloading
 """
 
 import time
@@ -786,13 +807,15 @@ print(f"Server running at http://{ip_address}")
 print("Server running at http://pico.local")
 print("Current LED blink rate:", blink_rate)
 
-# Main execution loop - concurrent LED control and web server
+# Main execution loop - concurrent LED control, web server, and live development support
 while True:
     try:
-        # Check for scheduled reboot (for code.py auto-reload)
+        # Check for scheduled reboot (enables live code development)
+        # When code.py is saved via web interface, system automatically reboots
+        # to reload new code, creating instant development feedback loop
         if reboot_scheduled > 0 and time.monotonic() >= reboot_scheduled:
             import microcontroller
-            print("Executing scheduled reboot...")
+            print("Executing scheduled reboot for code reload...")
             microcontroller.reset()
         
         # Update LED blinking (non-blocking operation)
