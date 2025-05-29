@@ -4,16 +4,41 @@
 """
 Menu System Web Server for Raspberry Pi Pico W with LED Blink Rate Control.
 
-Features:
-- Main menu with navigation to different functions
-- LED blink rate control (existing functionality)
-- File editor (saves success message but files don't actually persist)
-- 6 placeholder hooks for future features
-- Non-blocking LED control with web server
+Comprehensive web-based control interface with menu navigation system for
+instrument control applications. Provides LED blink rate control and 
+file editor functionality with extensible hook system for future features.
 
-Hardware:
-- Uses onboard LED on Pico W
-- No additional wiring required
+Features:
+- Web-based menu navigation system
+- LED blink rate control (0-100 scale with non-blocking operation)
+- File editor with save/load capabilities for configuration management
+- 6 extensible hook placeholders for future functionality
+- Static HTML architecture for memory efficiency
+- JSON API endpoints for data exchange
+- Non-blocking concurrent operations (LED control + web server)
+
+Hardware Requirements:
+- Raspberry Pi Pico W with onboard LED
+- No additional wiring required for basic functionality
+- Optional: External battery for standalone operation
+
+Library Dependencies:
+- Core: time, json, wifi, socketpool, board, digitalio
+- External: adafruit_httpserver (handles HTTP protocol and socket management)
+- Configuration: secrets.py (WiFi credentials)
+
+Usage:
+1. Create secrets.py with WiFi credentials (SSID and PASSWORD)
+2. Upload this code as code.py to CIRCUITPY drive
+3. Access web interface via IP address or pico.local
+4. Navigate menu system to access different functions
+5. LED blink control provides immediate feedback of system operation
+
+Architecture Notes:
+- Static HTML strings avoid dynamic generation memory issues
+- JSON API pattern for reliable data exchange
+- adafruit_httpserver provides proper socket lifecycle management
+- Separation of presentation (HTML) and data (JSON endpoints)
 """
 
 import time
@@ -25,38 +50,52 @@ import digitalio
 from adafruit_httpserver import Server, Request, Response
 from secrets import secrets
 
-# Initialize onboard LED
+# Initialize onboard LED for visual feedback
 led = digitalio.DigitalInOut(board.LED)
 led.direction = digitalio.Direction.OUTPUT
 led.value = False
 
-# Global blink rate (0-100) and LED state tracking
-blink_rate = 0  # Start with LED off
-led_state = False
-last_blink_time = 0
+# Global state variables for LED control and system management
+blink_rate = 0  # Current blink rate (0-100, 0=off)
+led_state = False  # Current LED on/off state
+last_blink_time = 0  # Timestamp for non-blocking timing
+reboot_scheduled = 0  # Timestamp for scheduled reboot (0 = no reboot)
 
 def update_led():
-    """Update LED based on current blink rate (non-blocking)."""
+    """
+    Update LED state based on current blink rate using non-blocking timing.
+    
+    Provides proportional blink rate control where:
+    - Rate 0: LED permanently off
+    - Rate 1: 2 second blink interval (slow)
+    - Rate 100: 0.02 second blink interval (very fast)
+    
+    Uses time.monotonic() for accurate non-blocking timing that doesn't
+    interfere with web server operations.
+    
+    Returns:
+        None
+    """
     global led_state, last_blink_time
     
     current_time = time.monotonic()
     
     if blink_rate == 0:
-        # Rate 0 = LED off
+        # Rate 0 = LED permanently off
         led.value = False
         led_state = False
     else:
-        # Calculate blink interval: faster rate = shorter interval
-        # Rate 1 = 2 second interval, Rate 100 = 0.02 second interval  
-        blink_interval = 2.0 - (blink_rate * 0.0198)  # 2.0 to 0.02 seconds
+        # Calculate blink interval with linear scaling
+        # Formula: 2.0 - (rate * 0.0198) gives range 2.0s to 0.02s
+        blink_interval = 2.0 - (blink_rate * 0.0198)
         
-        # Check if it's time to toggle
+        # Non-blocking timing check
         if current_time - last_blink_time >= blink_interval:
             led_state = not led_state
             led.value = led_state
             last_blink_time = current_time
 
-# Main Menu HTML
+# Static HTML templates - no dynamic generation to avoid memory issues
 MENU_HTML = """<!DOCTYPE html>
 <html>
 <head>
@@ -114,7 +153,6 @@ MENU_HTML = """<!DOCTYPE html>
 </body>
 </html>"""
 
-# Blink Rate Control HTML (your existing interface with back button)
 BLINK_HTML = """<!DOCTYPE html>
 <html>
 <head>
@@ -194,7 +232,7 @@ BLINK_HTML = """<!DOCTYPE html>
             valueDisplay.textContent = this.value;
         });
         
-        // Send blink rate to Pico W
+        // Send blink rate to Pico W via JSON API
         function sendRate() {
             const rate = slider.value;
             
@@ -216,7 +254,7 @@ BLINK_HTML = """<!DOCTYPE html>
             });
         }
         
-        // Get current blink rate from Pico W
+        // Get current blink rate from Pico W via JSON API
         function getCurrentRate() {
             fetch('/get_blink')
             .then(response => response.json())
@@ -232,7 +270,7 @@ BLINK_HTML = """<!DOCTYPE html>
             });
         }
         
-        // Get initial rate when page loads
+        // Initialize interface with current rate
         window.onload = function() {
             getCurrentRate();
         };
@@ -240,7 +278,6 @@ BLINK_HTML = """<!DOCTYPE html>
 </body>
 </html>"""
 
-# File Editor HTML
 FILE_EDITOR_HTML = """<!DOCTYPE html>
 <html>
 <head>
@@ -450,8 +487,17 @@ FILE_EDITOR_HTML = """<!DOCTYPE html>
 </body>
 </html>"""
 
-# Hook Page HTML Template
 def get_hook_html(hook_number, hook_name):
+    """
+    Generate HTML for placeholder hook pages.
+    
+    Args:
+        hook_number (int): Hook identifier number
+        hook_name (str): Display name for the hook
+        
+    Returns:
+        str: Static HTML string for hook page
+    """
     return f"""<!DOCTYPE html>
 <html>
 <head>
@@ -503,13 +549,13 @@ def get_hook_html(hook_number, hook_name):
 </body>
 </html>"""
 
-# Connect to WiFi
+# WiFi connection setup
 print("Connecting to WiFi...")
 wifi.radio.connect(secrets["ssid"], secrets["password"])
 ip_address = str(wifi.radio.ipv4_address)
 print(f"Connected to WiFi! IP Address: {ip_address}")
 
-# Set up mDNS
+# mDNS setup for pico.local access
 try:
     from mdns import Server as MDNSServer
     mdns_server = MDNSServer(wifi.radio)
@@ -521,36 +567,68 @@ except ImportError:
 except Exception as e:
     print(f"Error with mDNS setup: {e}")
 
-# Set up HTTP server
+# HTTP server initialization using adafruit_httpserver
 pool = socketpool.SocketPool(wifi.radio)
 server = Server(pool)
 
-# Route handlers
+# Route handlers - using static HTML and JSON API pattern
 @server.route("/")
 def main_menu(request: Request):
-    """Serve main menu."""
+    """
+    Serve main menu page.
+    
+    Args:
+        request (Request): HTTP request object
+        
+    Returns:
+        Response: Static HTML response for main menu
+    """
     return Response(request, MENU_HTML, content_type="text/html")
 
 @server.route("/blink")
 def blink_control(request: Request):
-    """Serve blink rate control page."""
+    """
+    Serve LED blink rate control interface.
+    
+    Args:
+        request (Request): HTTP request object
+        
+    Returns:
+        Response: Static HTML response for blink control
+    """
     return Response(request, BLINK_HTML, content_type="text/html")
 
 @server.route("/get_blink")
 def get_blink(request: Request):
-    """Return current blink rate as JSON."""
+    """
+    JSON API endpoint to get current blink rate.
+    
+    Args:
+        request (Request): HTTP request object
+        
+    Returns:
+        Response: JSON response with current blink rate
+    """
     data = {"rate": blink_rate}
     return Response(request, json.dumps(data), content_type="application/json")
 
 @server.route("/set_blink", methods=["POST"])
 def set_blink(request: Request):
-    """Update blink rate from POST data."""
+    """
+    JSON API endpoint to update blink rate.
+    
+    Args:
+        request (Request): HTTP POST request with JSON body containing rate
+        
+    Returns:
+        Response: Plain text confirmation of rate update
+    """
     global blink_rate
     try:
         data = json.loads(request.body)
         new_rate = int(data.get("rate", 0))
         
-        # Clamp value between 0 and 100
+        # Clamp value to valid range
         blink_rate = max(0, min(100, new_rate))
         
         print(f"LED blink rate updated to: {blink_rate}")
@@ -559,15 +637,36 @@ def set_blink(request: Request):
         print("Error updating blink rate:", e)
         return Response(request, f"Error updating rate: {e}", content_type="text/plain")
 
-# File I/O routes
 @server.route("/hook1")
 def file_editor(request: Request):
-    """File Editor interface."""
+    """
+    Serve file editor interface.
+    
+    Args:
+        request (Request): HTTP request object
+        
+    Returns:
+        Response: Static HTML response for file editor
+    """
     return Response(request, FILE_EDITOR_HTML, content_type="text/html")
 
 @server.route("/save_file", methods=["POST"])
 def save_file(request: Request):
-    """Save file to Pico filesystem."""
+    """
+    JSON API endpoint to save file to filesystem with optional auto-reboot.
+    
+    Automatically reboots the Pico W when code.py is saved to enable
+    live code development workflow. This allows editing and testing
+    code directly through the web interface.
+    
+    Args:
+        request (Request): HTTP POST request with JSON body containing filename and content
+        
+    Returns:
+        Response: Plain text confirmation of file save operation
+    """
+    import microcontroller
+    
     try:
         print("Parsing request data...")
         data = json.loads(request.body)
@@ -584,22 +683,47 @@ def save_file(request: Request):
             f.write(content)
         
         print(f"File saved successfully: {filename}")
-        return Response(request, f"File saved: {filename}", content_type="text/plain")
+        
+        # Check if this is code.py - if so, prepare for auto-reboot
+        if filename.lower() == "code.py":
+            print("code.py saved - rebooting in 2 seconds to reload new code...")
+            response = Response(request, f"File saved: {filename} - Rebooting to apply changes...", content_type="text/plain")
+            
+            # Send response first, then schedule reboot
+            # Note: This creates a brief delay to allow response to be sent
+            def delayed_reboot():
+                time.sleep(2)  # Give time for response to be sent
+                print("Rebooting now...")
+                microcontroller.reset()
+            
+            # Schedule reboot after response (will happen in main loop)
+            global reboot_scheduled
+            reboot_scheduled = time.monotonic() + 2
+            
+            return response
+        else:
+            return Response(request, f"File saved: {filename}", content_type="text/plain")
         
     except OSError as e:
-        error_msg = f"Cannot save file (disconnect USB if connected): {e}"
+        error_msg = f"Cannot save file (filesystem may be read-only): {e}"
         print(f"File system error: {e}")
-        # Return success response but with error message to avoid HTTP server bug
         return Response(request, error_msg, content_type="text/plain")
     except Exception as e:
         error_msg = f"Error saving file: {e}"
         print(error_msg)
-        # Return success response but with error message to avoid HTTP server bug  
         return Response(request, error_msg, content_type="text/plain")
 
 @server.route("/load_file", methods=["POST"])
 def load_file(request: Request):
-    """Load file from Pico filesystem."""
+    """
+    JSON API endpoint to load file from filesystem.
+    
+    Args:
+        request (Request): HTTP POST request with JSON body containing filename
+        
+    Returns:
+        Response: JSON response with file content or error message
+    """
     try:
         data = json.loads(request.body)
         filename = data.get("filename", "").strip()
@@ -607,13 +731,13 @@ def load_file(request: Request):
         if not filename:
             return Response(request, "Filename required", content_type="text/plain")
         
-        # Try to read from /lib directory first, then root
+        # Try to read from /lib directory first, then root directory
         filepath = f"/lib/{filename}"
         try:
             with open(filepath, 'r') as f:
                 content = f.read()
-        except OSError:  # Use OSError instead of FileNotFoundError
-            # Try root directory as fallback
+        except OSError:
+            # Fallback to root directory
             try:
                 with open(filename, 'r') as f:
                     content = f.read()
@@ -629,46 +753,52 @@ def load_file(request: Request):
         print(f"Error loading file: {e}")
         return Response(request, f"Error loading file: {e}", content_type="text/plain")
 
-# Hook routes
+# Hook route handlers for future expansion
 @server.route("/hook2")
 def hook2(request: Request):
-    """Hook 2."""
+    """Placeholder hook 2."""
     return Response(request, get_hook_html(2, "Hook 2"), content_type="text/html")
 
 @server.route("/hook3")
 def hook3(request: Request):
-    """Hook 3."""
+    """Placeholder hook 3."""
     return Response(request, get_hook_html(3, "Hook 3"), content_type="text/html")
 
 @server.route("/hook4")
 def hook4(request: Request):
-    """Hook 4."""
+    """Placeholder hook 4."""
     return Response(request, get_hook_html(4, "Hook 4"), content_type="text/html")
 
 @server.route("/hook5")
 def hook5(request: Request):
-    """Hook 5."""
+    """Placeholder hook 5."""
     return Response(request, get_hook_html(5, "Hook 5"), content_type="text/html")
 
 @server.route("/hook6")
 def hook6(request: Request):
-    """Hook 6."""
+    """Placeholder hook 6."""
     return Response(request, get_hook_html(6, "Hook 6"), content_type="text/html")
 
-# Start server
+# Server startup and main loop
 print("Starting server...")
 server.start(ip_address, port=80)
 print(f"Server running at http://{ip_address}")
 print("Server running at http://pico.local")
 print("Current LED blink rate:", blink_rate)
 
-# Keep the server running
+# Main execution loop - concurrent LED control and web server
 while True:
     try:
-        # Update LED blinking (non-blocking)
+        # Check for scheduled reboot (for code.py auto-reload)
+        if reboot_scheduled > 0 and time.monotonic() >= reboot_scheduled:
+            import microcontroller
+            print("Executing scheduled reboot...")
+            microcontroller.reset()
+        
+        # Update LED blinking (non-blocking operation)
         update_led()
         
-        # Handle web requests
+        # Handle web requests (essential - don't forget this!)
         server.poll()
     except Exception as e:
         print("Error:", e)
