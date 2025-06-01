@@ -1,7 +1,7 @@
 """
 Pico 2 W Hotspot File Editor Demo
 ================================
-
+ 
 Simple standalone demonstration of hotspot-served file editor with auto-reboot
 functionality. Extracted from comprehensive IDE system for focused learning.
 
