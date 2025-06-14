@@ -221,25 +221,29 @@ def send_command(request: Request):
     except Exception as e:
         return Response(request, f"Error: {e}", content_type="text/plain")
 
+# NOTE: TODO make directories accessible
 @server.route("/list_files")
 def list_files(request: Request):
-    """List all files in the filesystem."""
-    try:
-        import os
-        files = []
-        
-        for filename in os.listdir('/'):
-            try:
-                stat = os.stat('/' + filename)
-                files.append({'name': filename, 'size': stat[6]})
-            except:
-                pass
-        
-        files.sort(key=lambda x: x['name'])
-        return Response(request, json.dumps(files), content_type="application/json")
-        
-    except Exception as e:
-        return Response(request, f"Error: {e}", content_type="text/plain")
+   """List all files in the filesystem."""
+   try:
+       import os
+       files = []
+       
+       for filename in os.listdir('/'):
+           try:
+               stat = os.stat('/' + filename)
+               is_directory = (stat[0] & 0x4000) != 0
+               if is_directory:
+                   continue  # Skip directories, only show files
+               files.append({'name': filename, 'size': stat[6]})
+           except:
+               pass
+       
+       files.sort(key=lambda x: x['name'])
+       return Response(request, json.dumps(files), content_type="application/json")
+       
+   except Exception as e:
+       return Response(request, f"Error: {e}", content_type="text/plain")
 
 @server.route("/delete_file", methods=["POST"])
 def delete_file(request: Request):
